@@ -32,10 +32,11 @@ jobs:
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
+
           java-version: 21
           distribution: 'temurin'
           cache: 'maven'
-      
+     
 #       - name: Set up Go
 #         uses: actions/setup-go@v3
 #         with:
@@ -50,19 +51,7 @@ jobs:
           mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.projectKey=ita-social-projects-green-city-user -Dsonar.organization=ita-social-projects -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources='src/main/java/greencity' -Dsonar.binaries=target/classes -Dsonar.dynamicAnalysis=reuseReports
         # Checks-out your greencity.repository under $GITHUB_WORKSPACE, so your job can access it
       
-	  # DIAGNOSTIC STEP: Check where the reports actually are
-      - name: Check Surefire Report Location
-        if: always()
-        run: |
-          echo "Listing directories containing surefire-reports:"
-          find . -name "surefire-reports" -type d
-          echo "Listing contents of $userRepoName/target (core/target):"
-          ls -R ${{ env.userRepoName }}/target || echo "${{ env.userRepoName }}/target directory not found."
-          echo "Listing contents of root target:"
-          ls -R target || echo "Root target directory not found."
-	  
       - name: Test Reporter
-#        uses: dorny/test-reporter@v1.5.0
         uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
@@ -77,7 +66,7 @@ jobs:
         run: echo "GITHUB_SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Docker Login
-        uses: docker/login-action@v3.0.0
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
