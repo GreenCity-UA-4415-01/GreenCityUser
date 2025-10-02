@@ -50,8 +50,20 @@ jobs:
           mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.projectKey=ita-social-projects-green-city-user -Dsonar.organization=ita-social-projects -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources='src/main/java/greencity' -Dsonar.binaries=target/classes -Dsonar.dynamicAnalysis=reuseReports
         # Checks-out your greencity.repository under $GITHUB_WORKSPACE, so your job can access it
       
+	  # DIAGNOSTIC STEP: Check where the reports actually are
+      - name: Check Surefire Report Location
+        if: always()
+        run: |
+          echo "Listing directories containing surefire-reports:"
+          find . -name "surefire-reports" -type d
+          echo "Listing contents of $userRepoName/target (core/target):"
+          ls -R ${{ env.userRepoName }}/target || echo "${{ env.userRepoName }}/target directory not found."
+          echo "Listing contents of root target:"
+          ls -R target || echo "Root target directory not found."
+	  
       - name: Test Reporter
-        uses: dorny/test-reporter@v1.5.0
+#        uses: dorny/test-reporter@v1.5.0
+        uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
           name: Tests Report
@@ -71,7 +83,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker images
-        uses: docker/build-push-action@v5.0.0
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
