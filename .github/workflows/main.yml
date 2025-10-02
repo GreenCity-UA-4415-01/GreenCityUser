@@ -25,6 +25,11 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     runs-on: ubuntu-latest
+
+    # Add permissions to allow the GITHUB_TOKEN to write Check Runs
+    permissions:
+      checks: write
+    
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v4
