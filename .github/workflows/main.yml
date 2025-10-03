@@ -16,7 +16,7 @@ env:
   repository: user
   userRepoName: core
   onbootJarName: app.jar
-  dockerRepoName: skyere/greencityuser
+  dockerRepoName: azkeep/sofserpbl-greencityuser
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -25,6 +25,11 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     runs-on: ubuntu-latest
+
+    # Add permissions to allow the GITHUB_TOKEN to write Check Runs
+    permissions:
+      checks: write
+    
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +53,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_USER }}
         run: |
           git fetch --unshallow
-          mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.projectKey=ita-social-projects-green-city-user -Dsonar.organization=ita-social-projects -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources='src/main/java/greencity' -Dsonar.binaries=target/classes -Dsonar.dynamicAnalysis=reuseReports
+          mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install
+        #  Temporary mvn install without using Sonar
+        
+        #  Uncomment after we setup Sonar properly
+        #  mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.projectKey=ita-social-projects-green-city-user -Dsonar.organization=ita-social-projects -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources='src/main/java/greencity' -Dsonar.binaries=target/classes -Dsonar.dynamicAnalysis=reuseReports
+        # Checks-out your greencity.repository under $GITHUB_WORKSPACE, so your job can access it
         # Checks-out your greencity.repository under $GITHUB_WORKSPACE, so your job can access it
       
       - name: Test Reporter
