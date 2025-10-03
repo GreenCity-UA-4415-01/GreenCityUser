@@ -50,14 +50,14 @@ class EmailServiceImplTest {
     public void setup() {
         initMocks(this);
         service = new EmailServiceImpl(javaMailSender,
-                templateEngine,
-                userRepo,
-                Executors.newCachedThreadPool(),
+            templateEngine,
+            userRepo,
+            Executors.newCachedThreadPool(),
             "http://localhost:4200",
-                "http://localhost:4200",
-                "http://localhost:8080",
+            "http://localhost:4200",
+            "http://localhost:8080",
             "test@email.com",
-                userEmailValidator);
+            userEmailValidator);
         placeAuthorDto = PlaceAuthorDto.builder()
             .id(1L)
             .email("testEmail@gmail.com")
