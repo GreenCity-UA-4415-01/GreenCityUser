@@ -59,14 +59,14 @@ public class EmailServiceImpl implements EmailService {
      */
     @Autowired
     public EmailServiceImpl(JavaMailSender javaMailSender,
-                            ITemplateEngine templateEngine,
-                            UserRepo userRepo,
-                            @Qualifier("sendEmailExecutor") Executor executor,
-                            @Value("${client.address}") String clientLink,
-                            @Value("${econews.address}") String ecoNewsLink,
-                            @Value("${address}") String serverLink,
-                            @Value("${sender.email.address}") String senderEmailAddress,
-                            UserEmailValidator userEmailValidator) {
+        ITemplateEngine templateEngine,
+        UserRepo userRepo,
+        @Qualifier("sendEmailExecutor") Executor executor,
+        @Value("${client.address}") String clientLink,
+        @Value("${econews.address}") String ecoNewsLink,
+        @Value("${address}") String serverLink,
+        @Value("${sender.email.address}") String senderEmailAddress,
+        UserEmailValidator userEmailValidator) {
         this.javaMailSender = javaMailSender;
         this.templateEngine = templateEngine;
         this.userRepo = userRepo;
