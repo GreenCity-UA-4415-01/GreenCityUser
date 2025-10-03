@@ -14,6 +14,7 @@ import greencity.dto.violation.UserViolationMailDto;
 import greencity.entity.User;
 import greencity.exception.exceptions.NotFoundException;
 import greencity.repository.UserRepo;
+import greencity.validator.UserEmailValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,13 +43,21 @@ class EmailServiceImplTest {
     private ITemplateEngine templateEngine;
     @Mock
     private UserRepo userRepo;
+    @Mock
+    private UserEmailValidator userEmailValidator;
 
     @BeforeEach
     public void setup() {
         initMocks(this);
-        service = new EmailServiceImpl(javaMailSender, templateEngine, userRepo, Executors.newCachedThreadPool(),
-            "http://localhost:4200", "http://localhost:4200", "http://localhost:8080",
-            "test@email.com");
+        service = new EmailServiceImpl(javaMailSender,
+                templateEngine,
+                userRepo,
+                Executors.newCachedThreadPool(),
+            "http://localhost:4200",
+                "http://localhost:4200",
+                "http://localhost:8080",
+            "test@email.com",
+                userEmailValidator);
         placeAuthorDto = PlaceAuthorDto.builder()
             .id(1L)
             .email("testEmail@gmail.com")
@@ -140,7 +149,8 @@ class EmailServiceImplTest {
     void sendHabitNotification() {
         User user = User.builder().build();
         when(userRepo.findByEmail(anyString())).thenReturn(Optional.of(user));
-        service.sendHabitNotification("userName", "userEmail");
+        when(userEmailValidator.isValid(anyString())).thenReturn(true);
+        service.sendHabitNotification("userName", "user@email.com.ua");
         verify(javaMailSender).createMimeMessage();
     }
 
