@@ -16,7 +16,7 @@ env:
   repository: user
   userRepoName: core
   onbootJarName: app.jar
-  dockerRepoName: skyere/greencityuser
+  dockerRepoName: azkeep/sofserpbl-greencityuser
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
