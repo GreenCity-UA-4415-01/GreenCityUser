@@ -2,7 +2,6 @@ package greencity.annotations;
 
 import greencity.validator.UserEmailValidator;
 import jakarta.validation.Constraint;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

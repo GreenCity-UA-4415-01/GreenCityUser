@@ -27,5 +27,4 @@ public class UserEmailValidator implements ConstraintValidator<EmailValidation, 
     public boolean isValid(String email) {
         return isValid(email, null);
     }
-
 }
