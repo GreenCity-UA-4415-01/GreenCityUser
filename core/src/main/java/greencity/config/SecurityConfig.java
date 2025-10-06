@@ -7,6 +7,7 @@ import greencity.security.filters.AccessTokenAuthenticationFilter;
 import greencity.security.jwt.JwtTool;
 import greencity.security.providers.JwtAuthenticationProvider;
 import greencity.service.UserService;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -96,7 +97,10 @@ public class SecurityConfig {
                     SC_UNAUTHORIZED, "Authorize first."))
                 .accessDeniedHandler((req, resp, exc) -> resp.sendError(
                     SC_FORBIDDEN, "You don't have authorities.")))
-            .authorizeHttpRequests(req -> req
+            .authorizeHttpRequests(req -> req.dispatcherTypeMatchers(
+                    DispatcherType.ERROR,
+					          DispatcherType.FORWARD)
+				        .permitAll()
                 .requestMatchers("/static/css/**", "/static/img/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
@@ -130,7 +134,9 @@ public class SecurityConfig {
                     "/ownSecurity/signIn",
                     "/ownSecurity/updatePassword")
                 .permitAll()
-                .requestMatchers(HttpMethod.GET, USER_LINK,
+				.requestMatchers(HttpMethod.GET, USER_LINK)
+				.hasRole(ADMIN)
+                .requestMatchers(HttpMethod.GET, 
                     "/user/shopping-list-items/habits/{habitId}/shopping-list",
                     "/user/{userId}/{habitId}/custom-shopping-list-items/available",
                     "/user/{userId}/profile/", "/user/isOnline/{userId}/",
