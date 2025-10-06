@@ -98,9 +98,9 @@ public class SecurityConfig {
                 .accessDeniedHandler((req, resp, exc) -> resp.sendError(
                     SC_FORBIDDEN, "You don't have authorities.")))
             .authorizeHttpRequests(req -> req.dispatcherTypeMatchers(
-                    DispatcherType.ERROR,
-					          DispatcherType.FORWARD)
-				        .permitAll()
+                DispatcherType.ERROR,
+                DispatcherType.FORWARD)
+                .permitAll()
                 .requestMatchers("/static/css/**", "/static/img/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
@@ -134,9 +134,9 @@ public class SecurityConfig {
                     "/ownSecurity/signIn",
                     "/ownSecurity/updatePassword")
                 .permitAll()
-				.requestMatchers(HttpMethod.GET, USER_LINK)
-				.hasRole(ADMIN)
-                .requestMatchers(HttpMethod.GET, 
+                .requestMatchers(HttpMethod.GET, USER_LINK)
+                .hasRole(ADMIN)
+                .requestMatchers(HttpMethod.GET,
                     "/user/shopping-list-items/habits/{habitId}/shopping-list",
                     "/user/{userId}/{habitId}/custom-shopping-list-items/available",
                     "/user/{userId}/profile/", "/user/isOnline/{userId}/",

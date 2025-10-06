@@ -60,7 +60,7 @@ public class EmailController {
      * @author Taras Kavkalo
      */
     @PostMapping("/changePlaceStatus")
-    @PreAuthorize("hasRole('ADMIN') or #message.authorEmail == authentication.principal.username")
+    @PreAuthorize("hasRole('ADMIN') or #message.authorEmail == authentication.principal")
     public ResponseEntity<Object> changePlaceStatus(@RequestBody SendChangePlaceStatusEmailMessage message) {
         emailService.sendChangePlaceStatusEmail(message.getAuthorFirstName(), message.getPlaceName(),
             message.getPlaceStatus(), message.getAuthorEmail());
