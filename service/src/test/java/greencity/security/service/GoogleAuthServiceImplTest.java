@@ -60,13 +60,16 @@ class GoogleAuthServiceImplTest {
     @DisplayName("Save Request and return correct URL")
     void generateGoogleAuthRedirectUrl_ShouldSaveRequestAndReturnCorrectUrl() {
         String url = googleAuthService.generateGoogleAuthRedirectUrl(request, response);
+        assertFalse(url.contains(" "), "URL must NOT contain unencoded spaces; encoding is required.");
+        assertTrue(url.contains("access_type=offline"),
+            "URL must request offline access to receive refresh tokens.");
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(url);
         Map<String, String> params = builder.build().getQueryParams().toSingleValueMap();
 
         assertEquals(CLIENT_ID, params.get(OAuth2ParameterNames.CLIENT_ID));
         assertEquals(REDIRECT_URI, params.get(OAuth2ParameterNames.REDIRECT_URI));
-        assertEquals(SCOPE.replace(",", " "), params.get(OAuth2ParameterNames.SCOPE));
+        assertEquals(SCOPE.replace(",", "%20"), params.get(OAuth2ParameterNames.SCOPE));
         assertEquals(RESPONSE_TYPE, params.get(OAuth2ParameterNames.RESPONSE_TYPE));
 
         String state = params.get(OAuth2ParameterNames.STATE);

@@ -81,7 +81,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
         authorizationRequestRepository.saveAuthorizationRequest(authorizationRequest, request, response);
 
-        String formattedScope = scope.replace(",", " ");
+        String formattedScope = Arrays.stream(scope.split(","))
+            .map(String::trim)
+            .collect(java.util.stream.Collectors.joining(" "));
 
         return UriComponentsBuilder.fromUriString(authorizationUri)
             .queryParam(OAuth2ParameterNames.CLIENT_ID, clientId)
@@ -89,6 +91,8 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             .queryParam(OAuth2ParameterNames.SCOPE, formattedScope)
             .queryParam(OAuth2ParameterNames.RESPONSE_TYPE, responseType)
             .queryParam("state", state)
+            .queryParam("access_type", "offline")
+            .encode()
             .build()
             .toUriString();
     }

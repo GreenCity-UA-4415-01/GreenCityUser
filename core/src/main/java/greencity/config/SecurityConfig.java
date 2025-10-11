@@ -126,6 +126,7 @@ public class SecurityConfig {
                     "/ownSecurity/verifyEmail",
                     "/ownSecurity/updateAccessToken",
                     "/ownSecurity/restorePassword",
+                    "/auth/google",
                     "/googleSecurity",
                     "/facebookSecurity/generateFacebookAuthorizeURL",
                     "/facebookSecurity/facebook", "/user/emailNotifications",
