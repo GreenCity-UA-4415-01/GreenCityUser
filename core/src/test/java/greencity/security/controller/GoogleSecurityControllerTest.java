@@ -19,8 +19,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("MainController Integration Tests")
-class MainControllerTest {
+@DisplayName("Google Security Controller Tests")
+class GoogleSecurityControllerTest {
 
     @Mock
     private GoogleAuthService googleAuthService;
