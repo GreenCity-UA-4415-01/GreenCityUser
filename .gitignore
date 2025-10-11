@@ -37,3 +37,7 @@ build/
 .vscode/
 src/main/resources/static/
 src/main/resources/application.properties
+
+# Security and Configuration
+.env
+application-secrets.properties
