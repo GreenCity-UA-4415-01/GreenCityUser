@@ -2,6 +2,7 @@ package greencity.controller;
 
 import greencity.constant.HttpStatuses;
 import greencity.dto.econews.EcoNewsForSendEmailDto;
+import greencity.dto.newssubscriber.AddEcoNewsDtoRequest;
 import greencity.dto.notification.NotificationDto;
 import greencity.dto.violation.UserViolationMailDto;
 import greencity.message.SendChangePlaceStatusEmailMessage;
@@ -109,5 +110,11 @@ public class EmailController {
         @RequestParam("email") String email) {
         emailService.sendNotificationByEmail(notification, email);
         return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    @PostMapping("/sendNewNews")
+    public ResponseEntity<Void> sendNewNews(@RequestBody AddEcoNewsDtoRequest request) {
+        emailService.sendNewNewsForSubscriber(request.getSubscribers(), request.getNewsDto());
+        return ResponseEntity.ok().build();
     }
 }
