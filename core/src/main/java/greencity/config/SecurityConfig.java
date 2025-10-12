@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -21,8 +22,12 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,6 +69,11 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository() {
+        return new HttpSessionOAuth2AuthorizationRequestRepository();
     }
 
     /**
@@ -118,6 +128,8 @@ public class SecurityConfig {
                     "/ownSecurity/verifyEmail",
                     "/ownSecurity/updateAccessToken",
                     "/ownSecurity/restorePassword",
+                    "/auth/google",
+                    "/auth/google/callback",
                     "/googleSecurity",
                     "/facebookSecurity/generateFacebookAuthorizeURL",
                     "/facebookSecurity/facebook", "/user/emailNotifications",
@@ -255,5 +267,17 @@ public class SecurityConfig {
     public GoogleIdTokenVerifier googleIdTokenVerifier() {
         return new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
             GsonFactory.getDefaultInstance()).build();
+    }
+
+    /**
+     * Defines a RestTemplate bean for the application context. This allows it to be
+     * autowired into other services (like GoogleAuthServiceImpl).
+     */
+    @Bean
+    public RestTemplate restTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(5000);
+        return new RestTemplate(factory);
     }
 }
