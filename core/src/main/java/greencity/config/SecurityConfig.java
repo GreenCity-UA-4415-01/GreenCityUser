@@ -269,8 +269,8 @@ public class SecurityConfig {
     }
 
     /**
-     * Defines a RestTemplate bean for the application context.
-     * This allows it to be autowired into other services (like GoogleAuthServiceImpl).
+     * Defines a RestTemplate bean for the application context. This allows it to be
+     * autowired into other services (like GoogleAuthServiceImpl).
      */
     @Bean
     public RestTemplate restTemplate() {

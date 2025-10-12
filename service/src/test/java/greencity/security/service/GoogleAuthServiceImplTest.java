@@ -58,9 +58,8 @@ class GoogleAuthServiceImplTest {
     private RestTemplate restTemplate;
 
     private static final String CLIENT_ID = "test_client_id";
-    private static final String PART_A = "test_client";
-    private static final String PART_B = "_secret";
-    private static final String CLIENT_SECRET = PART_A + PART_B;
+    // nosemgrep: java.java-jwt.security.jwt-hardcode.java-jwt-hardcoded-secret
+    private static final String CLIENT_SECRET = "test_client_secret";
     private static final String REDIRECT_URI = "http://localhost:8080/auth/google/callback";
     private static final String SCOPE = "email,profile,openid";
     private static final String RESPONSE_TYPE = "code";
@@ -106,7 +105,7 @@ class GoogleAuthServiceImplTest {
             .thenReturn(savedRequest);
 
         GoogleAuthServiceImpl.TokenResponse tokenResponse = new GoogleAuthServiceImpl.TokenResponse();
-        tokenResponse.idToken = ID_TOKEN_STRING;
+        tokenResponse.setIdToken(ID_TOKEN_STRING);
 
         when(restTemplate.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
             .thenReturn(ResponseEntity.ok(tokenResponse));

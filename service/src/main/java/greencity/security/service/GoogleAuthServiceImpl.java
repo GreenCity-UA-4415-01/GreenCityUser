@@ -8,6 +8,7 @@ import greencity.exception.exceptions.StateMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -19,6 +20,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 import java.security.SecureRandom;
 import java.util.*;
@@ -28,6 +30,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -67,9 +70,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
      *                                       to use Spring Security mechanisms
      */
     public GoogleAuthServiceImpl(
-            AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
-            GoogleIdTokenVerifier googleIdTokenVerifier,
-            RestTemplate restTemplate) {
+        AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
+        GoogleIdTokenVerifier googleIdTokenVerifier,
+        RestTemplate restTemplate) {
         this.authorizationRequestRepository = authorizationRequestRepository;
         this.googleIdTokenVerifier = googleIdTokenVerifier;
         this.restTemplate = restTemplate;
@@ -95,7 +98,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             .authorizationUri(authorizationUri)
             .clientId(clientId)
             .redirectUri(redirectUri)
-            .scopes(Set.of(scope.split(",")))
+            .scopes(Arrays.stream(scope.split(",")).map(String::trim).collect(Collectors.toSet()))
             .additionalParameters(additionalParameters)
             .attributes(Collections.singletonMap(
                 OAuth2ParameterNames.REGISTRATION_ID, "google"))
@@ -140,8 +143,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             .removeAuthorizationRequest(request, response);
 
         if (savedRequest == null || !savedRequest.getState().equals(state)) {
-            log.error("State mismatch: received={}, expected={}", state,
-                savedRequest != null ? savedRequest.getState() : "null");
+            log.error("State mismatch detected");
             throw new StateMismatchException("State parameter mismatch.");
         }
 
@@ -162,17 +164,21 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                 tokenUri,
                 requestEntity,
                 TokenResponse.class);
-            if (responseEntity.getStatusCode().isError() || responseEntity.getBody() == null) {
-                log.error("Google token exchange failed: {}", responseEntity.getBody());
+            if (!responseEntity.getStatusCode().is2xxSuccessful() || responseEntity.getBody() == null) {
+                log.error("Google token exchange failed with status: {}",
+                    responseEntity.getStatusCode());
                 throw new GoogleCodeExchangeException("Failed to exchange code for tokens.");
             }
             tokenResponse = responseEntity.getBody();
-        } catch (Exception e) {
+        } catch (RestClientException e) {
             log.error("HTTP error during Google token exchange", e);
             throw new GoogleCodeExchangeException("Invalid or expired code.");
         }
 
         String idTokenString = tokenResponse.getIdToken();
+        if (idTokenString == null || idTokenString.isEmpty()) {
+            throw new GoogleCodeExchangeException("Token response missing id_token.");
+        }
 
         GoogleIdToken idToken;
         try {
@@ -204,8 +210,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     /** Inner class for deserializing the token endpoint response. */
     @Getter
+    @Setter
     public static class TokenResponse {
         @JsonProperty("id_token")
-        public String idToken;
+        private String idToken;
     }
 }
