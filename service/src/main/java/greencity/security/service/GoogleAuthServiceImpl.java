@@ -1,5 +1,6 @@
 package greencity.security.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import greencity.dto.user.GoogleUserDto;
 import greencity.exception.exceptions.GoogleCodeExchangeException;
 import greencity.exception.exceptions.GoogleIdTokenValidationException;
@@ -9,10 +10,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 import java.security.SecureRandom;
 import java.util.*;
@@ -137,12 +143,16 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             throw new StateMismatchException("State parameter mismatch.");
         }
 
-        Map<String, String> tokenRequestParams = new HashMap<>();
-        tokenRequestParams.put("code", code);
-        tokenRequestParams.put("client_id", clientId);
-        tokenRequestParams.put("client_secret", clientSecret);
-        tokenRequestParams.put("redirect_uri", redirectUri);
-        tokenRequestParams.put("grant_type", grantType);
+        MultiValueMap<String, String> tokenRequestParams = new LinkedMultiValueMap<>();
+        tokenRequestParams.add("code", code);
+        tokenRequestParams.add("client_id", clientId);
+        tokenRequestParams.add("client_secret", clientSecret);
+        tokenRequestParams.add("redirect_uri", redirectUri);
+        tokenRequestParams.add("grant_type", grantType);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(tokenRequestParams, headers);
 
         TokenResponse tokenResponse;
         try {
@@ -193,6 +203,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     /** Inner class for deserializing the token endpoint response. */
     @Getter
     public static class TokenResponse {
+        @JsonProperty("id_token")
         public String idToken;
     }
 }
