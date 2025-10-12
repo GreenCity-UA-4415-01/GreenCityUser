@@ -1,7 +1,12 @@
 package greencity.security.service;
 
+import greencity.dto.user.GoogleUserDto;
+import greencity.exception.exceptions.GoogleCodeExchangeException;
+import greencity.exception.exceptions.GoogleIdTokenValidationException;
+import greencity.exception.exceptions.StateMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
@@ -11,10 +16,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 import java.security.SecureRandom;
 import java.util.*;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 @Service
 @Slf4j
 public class GoogleAuthServiceImpl implements GoogleAuthService {
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
+    private String clientSecret;
+
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String clientId;
 
@@ -25,14 +39,20 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private String scope;
 
     @Value("${spring.security.oauth2.client.registration.google.authorization-grant-type}")
-    private String responseType;
+    private String grantType;
+
+    private final String responseType = "code";
 
     @Value("${spring.security.oauth2.client.provider.google.authorization-uri}")
     private String authorizationUri;
 
-    private final AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository;
+    @Value("${spring.security.oauth2.client.provider.google.token-uri}")
+    private String tokenUri;
 
+    private final AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     /**
      * Constructor.
@@ -41,8 +61,10 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
      *                                       to use Spring Security mechanisms
      */
     public GoogleAuthServiceImpl(
-        AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository) {
+        AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
+        GoogleIdTokenVerifier googleIdTokenVerifier) {
         this.authorizationRequestRepository = authorizationRequestRepository;
+        this.googleIdTokenVerifier = googleIdTokenVerifier;
     }
 
     /**
@@ -95,5 +117,82 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             .encode()
             .build()
             .toUriString();
+    }
+
+    /**
+     * Exchanges the authorization code for tokens and validates the id_token.
+     */
+    @Override
+    public GoogleUserDto handleGoogleAuthCallback(
+        String code,
+        String state,
+        HttpServletRequest request,
+        HttpServletResponse response) {
+        OAuth2AuthorizationRequest savedRequest = authorizationRequestRepository
+            .removeAuthorizationRequest(request, response);
+
+        if (savedRequest == null || !savedRequest.getState().equals(state)) {
+            log.error("State mismatch: received={}, expected={}", state,
+                savedRequest != null ? savedRequest.getState() : "null");
+            throw new StateMismatchException("State parameter mismatch.");
+        }
+
+        Map<String, String> tokenRequestParams = new HashMap<>();
+        tokenRequestParams.put("code", code);
+        tokenRequestParams.put("client_id", clientId);
+        tokenRequestParams.put("client_secret", clientSecret);
+        tokenRequestParams.put("redirect_uri", redirectUri);
+        tokenRequestParams.put("grant_type", grantType);
+
+        TokenResponse tokenResponse;
+        try {
+            ResponseEntity<TokenResponse> responseEntity = restTemplate.postForEntity(
+                tokenUri,
+                tokenRequestParams,
+                TokenResponse.class);
+            if (responseEntity.getStatusCode().isError() || responseEntity.getBody() == null) {
+                log.error("Google token exchange failed: {}", responseEntity.getBody());
+                throw new GoogleCodeExchangeException("Failed to exchange code for tokens.");
+            }
+            tokenResponse = responseEntity.getBody();
+        } catch (Exception e) {
+            log.error("HTTP error during Google token exchange", e);
+            throw new GoogleCodeExchangeException("Invalid or expired code.");
+        }
+
+        String idTokenString = tokenResponse.getIdToken();
+
+        GoogleIdToken idToken;
+        try {
+            idToken = googleIdTokenVerifier.verify(idTokenString);
+        } catch (GeneralSecurityException | IOException e) {
+            log.error("Google ID Token verification failed", e);
+            throw new GoogleIdTokenValidationException("ID Token validation failed.");
+        }
+
+        if (idToken == null) {
+            throw new GoogleIdTokenValidationException("Invalid ID Token received.");
+        }
+
+        GoogleIdToken.Payload payload = idToken.getPayload();
+
+        Boolean emailVerified = (Boolean) payload.get("email_verified");
+        if (emailVerified == null || !emailVerified) {
+            throw new GoogleIdTokenValidationException("Unverified email.");
+        }
+
+        return GoogleUserDto.builder()
+            .sub(payload.getSubject())
+            .email(payload.getEmail())
+            .emailVerified(emailVerified)
+            .name((String) payload.get("name"))
+            .picture((String) payload.get("picture"))
+            .build();
+    }
+
+    /** Inner class for deserializing the token endpoint response. */
+    @Getter
+    public static class TokenResponse {
+        public String idToken;
     }
 }

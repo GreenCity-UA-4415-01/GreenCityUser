@@ -1,5 +1,11 @@
 package greencity.security.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import greencity.dto.user.GoogleUserDto;
+import greencity.exception.exceptions.GoogleCodeExchangeException;
+import greencity.exception.exceptions.GoogleIdTokenValidationException;
+import greencity.exception.exceptions.StateMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,17 +18,21 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.quality.Strictness;
 import org.mockito.junit.jupiter.MockitoSettings;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -33,6 +43,9 @@ class GoogleAuthServiceImplTest {
     private AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository;
 
     @Mock
+    private GoogleIdTokenVerifier googleIdTokenVerifier;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -41,23 +54,64 @@ class GoogleAuthServiceImplTest {
     @InjectMocks
     private GoogleAuthServiceImpl googleAuthService;
 
+    @Mock
+    private RestTemplate restTemplate;
+
     private static final String CLIENT_ID = "test_client_id";
-    private static final String REDIRECT_URI = "http://localhost:8080/callback";
+    private static final String CLIENT_SECRET = "test_client_secret";
+    private static final String REDIRECT_URI = "http://localhost:8080/auth/google/callback";
     private static final String SCOPE = "email,profile,openid";
     private static final String RESPONSE_TYPE = "code";
     private static final String AUTH_URI = "https://auth.google.com/auth";
+    private static final String TOKEN_URI = "https://token.google.com/token";
+
+    private static final String VALID_CODE = "valid_auth_code";
+    private static final String VALID_STATE = "valid_state_0123456789";
+    private static final String ID_TOKEN_STRING = "mock.jwt.idtoken";
+
+    private GoogleIdToken mockIdToken;
+    private GoogleIdToken.Payload mockPayload;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws GeneralSecurityException, IOException {
         ReflectionTestUtils.setField(googleAuthService, "clientId", CLIENT_ID);
+        ReflectionTestUtils.setField(googleAuthService, "clientSecret", CLIENT_SECRET);
         ReflectionTestUtils.setField(googleAuthService, "redirectUri", REDIRECT_URI);
         ReflectionTestUtils.setField(googleAuthService, "scope", SCOPE);
-        ReflectionTestUtils.setField(googleAuthService, "responseType", RESPONSE_TYPE);
+        ReflectionTestUtils.setField(googleAuthService, "grantType", "authorization_code");
         ReflectionTestUtils.setField(googleAuthService, "authorizationUri", AUTH_URI);
+        ReflectionTestUtils.setField(googleAuthService, "tokenUri", TOKEN_URI);
+
+        ReflectionTestUtils.setField(googleAuthService, "restTemplate", restTemplate);
+
+        mockPayload = new GoogleIdToken.Payload();
+        mockPayload.setSubject("1234567890");
+        mockPayload.setEmail("user@example.com");
+        mockPayload.setEmailVerified(true);
+        mockPayload.put("name", "Test User");
+        mockPayload.put("picture", "http://example.com/pic.jpg");
+
+        mockIdToken = mock(GoogleIdToken.class);
+        when(mockIdToken.getPayload()).thenReturn(mockPayload);
+
+        when(googleIdTokenVerifier.verify(ID_TOKEN_STRING)).thenReturn(mockIdToken);
+
+        OAuth2AuthorizationRequest savedRequest = OAuth2AuthorizationRequest.authorizationCode()
+            .state(VALID_STATE).authorizationUri(AUTH_URI).clientId(CLIENT_ID)
+            .redirectUri(REDIRECT_URI).scopes(Collections.emptySet()).build();
+
+        when(authorizationRequestRepository.removeAuthorizationRequest(request, response))
+            .thenReturn(savedRequest);
+
+        GoogleAuthServiceImpl.TokenResponse tokenResponse = new GoogleAuthServiceImpl.TokenResponse();
+        tokenResponse.idToken = ID_TOKEN_STRING;
+
+        when(restTemplate.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
+            .thenReturn(ResponseEntity.ok(tokenResponse));
     }
 
     @Test
-    @DisplayName("Save Request and return correct URL")
+    @DisplayName("Generate Redirect URL: Should save request and return correct URL")
     void generateGoogleAuthRedirectUrl_ShouldSaveRequestAndReturnCorrectUrl() {
         String url = googleAuthService.generateGoogleAuthRedirectUrl(request, response);
         assertFalse(url.contains(" "), "URL must NOT contain unencoded spaces; encoding is required.");
@@ -84,5 +138,77 @@ class GoogleAuthServiceImplTest {
         OAuth2AuthorizationRequest savedRequest = authRequestCaptor.getValue();
         assertEquals(state, savedRequest.getState(),
             "The state parameter in the URL must match the state saved in the repository.");
+    }
+
+    @Test
+    @DisplayName("Callback: Happy Path - Should exchange code, validate token, and return user data")
+    void handleGoogleAuthCallback_HappyPath() throws GeneralSecurityException, IOException {
+        GoogleUserDto result = googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response);
+
+        assertNotNull(result);
+        assertEquals("1234567890", result.getSub());
+        assertEquals("user@example.com", result.getEmail());
+        assertTrue(result.getEmailVerified());
+        assertEquals("Test User", result.getName());
+        assertEquals("http://example.com/pic.jpg", result.getPicture());
+
+        verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
+        verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+    }
+
+    @Test
+    @DisplayName("Callback: State Mismatch - Should throw StateMismatchException")
+    void handleGoogleAuthCallback_StateMismatch_ShouldThrowException() {
+        final String INVALID_STATE = "invalid_state";
+
+        assertThrows(StateMismatchException.class,
+            () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, INVALID_STATE, request, response));
+
+        verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
+        verifyNoInteractions(restTemplate);
+        verifyNoInteractions(googleIdTokenVerifier);
+    }
+
+    @Test
+    @DisplayName("Callback: Invalid Code - Should throw GoogleCodeExchangeException")
+    void handleGoogleAuthCallback_InvalidCode_ShouldThrowException() throws GeneralSecurityException, IOException {
+        when(restTemplate.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
+            .thenReturn(ResponseEntity.badRequest().build());
+
+        assertThrows(GoogleCodeExchangeException.class,
+            () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response));
+
+        verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(googleIdTokenVerifier, never()).verify(any(String.class));
+    }
+
+    @Test
+    @DisplayName("Callback: Invalid ID Token Signature/Claims - Should throw GoogleIdTokenValidationException")
+    void handleGoogleAuthCallback_InvalidIdToken_ShouldThrowException() throws GeneralSecurityException, IOException {
+        when(googleIdTokenVerifier.verify(ID_TOKEN_STRING)).thenReturn(null);
+
+        assertThrows(GoogleIdTokenValidationException.class,
+            () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response));
+
+        verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
+    }
+
+    @Test
+    @DisplayName("Callback: Unverified Email - Should throw GoogleIdTokenValidationException")
+    void handleGoogleAuthCallback_UnverifiedEmail_ShouldThrowException() throws GeneralSecurityException, IOException {
+        mockPayload.setEmailVerified(false);
+
+        GoogleIdTokenValidationException exception = assertThrows(GoogleIdTokenValidationException.class,
+            () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response));
+
+        assertTrue(exception.getMessage().contains("Unverified email"));
+
+        verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
     }
 }
