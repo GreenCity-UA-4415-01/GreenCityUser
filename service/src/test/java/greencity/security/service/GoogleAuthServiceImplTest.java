@@ -58,8 +58,7 @@ class GoogleAuthServiceImplTest {
     private RestTemplate restTemplate;
 
     private static final String CLIENT_ID = "test_client_id";
-    // nosemgrep: java.java-jwt.security.jwt-hardcode.java-jwt-hardcoded-secret
-    private static final String CLIENT_SECRET = "test_client_secret";
+    private static final String CLIENT_SECRET = "test_client_secret"; // nosemgrep
     private static final String REDIRECT_URI = "http://localhost:8080/auth/google/callback";
     private static final String SCOPE = "email,profile,openid";
     private static final String RESPONSE_TYPE = "code";
