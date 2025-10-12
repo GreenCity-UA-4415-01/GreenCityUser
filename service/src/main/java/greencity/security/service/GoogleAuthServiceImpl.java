@@ -58,7 +58,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private final AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository;
     private final SecureRandom secureRandom = new SecureRandom();
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     /**
      * Constructor.
@@ -67,10 +67,12 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
      *                                       to use Spring Security mechanisms
      */
     public GoogleAuthServiceImpl(
-        AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
-        GoogleIdTokenVerifier googleIdTokenVerifier) {
+            AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
+            GoogleIdTokenVerifier googleIdTokenVerifier,
+            RestTemplate restTemplate) {
         this.authorizationRequestRepository = authorizationRequestRepository;
         this.googleIdTokenVerifier = googleIdTokenVerifier;
+        this.restTemplate = restTemplate;
     }
 
     /**
@@ -158,7 +160,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         try {
             ResponseEntity<TokenResponse> responseEntity = restTemplate.postForEntity(
                 tokenUri,
-                tokenRequestParams,
+                requestEntity,
                 TokenResponse.class);
             if (responseEntity.getStatusCode().isError() || responseEntity.getBody() == null) {
                 log.error("Google token exchange failed: {}", responseEntity.getBody());

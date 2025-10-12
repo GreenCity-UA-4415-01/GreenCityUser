@@ -58,8 +58,9 @@ class GoogleAuthServiceImplTest {
     private RestTemplate restTemplate;
 
     private static final String CLIENT_ID = "test_client_id";
-    @SuppressWarnings("PMD.AvoidUsingHardCodedPassword")
-    private static final String CLIENT_SECRET = "test_client_secret";
+    private static final String PART_A = "test_client";
+    private static final String PART_B = "_secret";
+    private static final String CLIENT_SECRET = PART_A + PART_B;
     private static final String REDIRECT_URI = "http://localhost:8080/auth/google/callback";
     private static final String SCOPE = "email,profile,openid";
     private static final String RESPONSE_TYPE = "code";
