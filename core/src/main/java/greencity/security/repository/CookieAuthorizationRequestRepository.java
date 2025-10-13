@@ -1,5 +1,7 @@
 package greencity.security.repository;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import greencity.exception.exceptions.CookieDeserializeException;
 import greencity.exception.exceptions.CookieSerializeException;
 import jakarta.servlet.http.Cookie;
@@ -10,6 +12,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 import org.springframework.util.StringUtils;
 import java.io.*;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -24,6 +27,7 @@ public class CookieAuthorizationRequestRepository implements
     public static final String REDIRECT_URI_COOKIE_NAME = "redirect_uri";
 
     private static final int COOKIE_MAX_AGE_SECONDS = 180;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -123,14 +127,20 @@ public class CookieAuthorizationRequestRepository implements
      */
     public String serialize(Serializable object) {
         try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
-            oos.writeObject(object);
-            oos.flush();
+            OAuth2AuthorizationRequest o = (OAuth2AuthorizationRequest) object;
+            Map<String, Object> payload = Map.of(
+                "authorizationUri", o.getAuthorizationUri(),
+                "clientId", o.getClientId(),
+                "redirectUri", o.getRedirectUri(),
+                "scopes", o.getScopes(),
+                "state", o.getState(),
+                "attributes", o.getAttributes(),
+                "additionalParameters", o.getAdditionalParameters());
+            String json = MAPPER.writeValueAsString(payload);
             return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(bos.toByteArray());
-        } catch (IOException e) {
-            throw new CookieSerializeException("Serialization failed: Could not write object to byte stream.", e);
+                .encodeToString(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (IOException | ClassCastException e) {
+            throw new CookieSerializeException("Serialization failed.", e);
         }
     }
 
@@ -142,16 +152,31 @@ public class CookieAuthorizationRequestRepository implements
      * @param cls    The expected class of the deserialized object.
      * @return The deserialized object.
      */
-    @SuppressWarnings("unchecked")
     public <T> T deserialize(Cookie cookie, Class<T> cls) {
         try {
             byte[] bytes = Base64.getUrlDecoder().decode(cookie.getValue());
-            ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-            ObjectInputStream ois = new ObjectInputStream(bis);
-            return (T) ois.readObject();
-        } catch (IOException | ClassNotFoundException | IllegalArgumentException e) {
-            throw new CookieDeserializeException(
-                "Deserialization failed: Could not read object from byte stream or class not found.", e);
+            String json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            Map<String, Object> p = MAPPER.readValue(json, new TypeReference<Map<String, Object>>() {
+            });
+
+            @SuppressWarnings("unchecked")
+            OAuth2AuthorizationRequest result =
+                OAuth2AuthorizationRequest.authorizationCode()
+                    .authorizationUri((String) p.get("authorizationUri"))
+                    .clientId((String) p.get("clientId"))
+                    .redirectUri((String) p.get("redirectUri"))
+                    .scopes(new java.util.HashSet<>((java.util.List<String>) p.get("scopes")))
+                    .state((String) p.get("state"))
+                    .attributes((Map<String, Object>) p.getOrDefault("attributes", Map.of()))
+                    .additionalParameters((Map<String, Object>) p.getOrDefault("additionalParameters", Map.of()))
+                    .build();
+
+            if (!cls.isInstance(result)) {
+                throw new CookieDeserializeException("Unexpected deserialized type: " + result.getClass(), null);
+            }
+            return cls.cast(result);
+        } catch (IOException | ClassCastException | IllegalArgumentException e) {
+            throw new CookieDeserializeException("Deserialization failed.", e);
         }
     }
 }
