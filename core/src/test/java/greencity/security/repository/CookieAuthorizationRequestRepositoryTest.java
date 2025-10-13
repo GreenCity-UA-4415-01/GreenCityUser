@@ -56,6 +56,7 @@ class CookieAuthorizationRequestRepositoryTest {
             getResponseCookie(CookieAuthorizationRequestRepository.OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
         assertNotNull(authCookie, "Auth Request cookie must be set");
         assertTrue(authCookie.isHttpOnly(), "Cookie must be HTTP-only for security");
+        assertTrue(authCookie.getSecure(), "Cookie must be Secure");
         assertEquals("/", authCookie.getPath(), "Cookie path must be root");
         assertEquals(180, authCookie.getMaxAge(), "Cookie max age must be 180 seconds");
     }

@@ -98,12 +98,9 @@ public class CookieAuthorizationRequestRepository implements
      * Adds a new cookie to the response.
      */
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setMaxAge(maxAge);
-        response.addCookie(cookie);
+        String header = String.format("%s=%s; Max-Age=%d; Path=/; HttpOnly; Secure; SameSite=Lax",
+                name, value, maxAge);
+        response.addHeader("Set-Cookie", header);
     }
 
     /**
@@ -113,8 +110,11 @@ public class CookieAuthorizationRequestRepository implements
         getCookie(request, name).ifPresent(cookie -> {
             cookie.setValue("");
             cookie.setPath("/");
+            cookie.setHttpOnly(true);
+            cookie.setSecure(true);
             cookie.setMaxAge(0);
-            response.addCookie(cookie);
+            String header = String.format("%s=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax", name);
+            response.addHeader("Set-Cookie", header);
         });
     }
 
