@@ -99,7 +99,7 @@ public class CookieAuthorizationRequestRepository implements
      */
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
         String header = String.format("%s=%s; Max-Age=%d; Path=/; HttpOnly; Secure; SameSite=Lax",
-                name, value, maxAge);
+            name, value, maxAge);
         response.addHeader("Set-Cookie", header);
     }
 
