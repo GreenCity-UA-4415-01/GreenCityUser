@@ -6,9 +6,11 @@ import com.google.api.client.json.gson.GsonFactory;
 import greencity.security.filters.AccessTokenAuthenticationFilter;
 import greencity.security.jwt.JwtTool;
 import greencity.security.providers.JwtAuthenticationProvider;
+import greencity.security.repository.CookieAuthorizationRequestRepository;
 import greencity.service.UserService;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,7 +25,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
-import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -51,10 +52,12 @@ public class SecurityConfig {
     private static final String USER_LINK = "/user";
     private final AuthenticationConfiguration authenticationConfiguration;
 
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String clientId;
+
     /**
      * Constructor.
      */
-
     @Autowired
     public SecurityConfig(JwtTool jwtTool, UserService userService,
         AuthenticationConfiguration authenticationConfiguration) {
@@ -73,7 +76,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository() {
-        return new HttpSessionOAuth2AuthorizationRequestRepository();
+        return new CookieAuthorizationRequestRepository();
     }
 
     /**
@@ -265,8 +268,11 @@ public class SecurityConfig {
      */
     @Bean
     public GoogleIdTokenVerifier googleIdTokenVerifier() {
-        return new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
-            GsonFactory.getDefaultInstance()).build();
+        return new GoogleIdTokenVerifier.Builder(
+            new NetHttpTransport(),
+            GsonFactory.getDefaultInstance())
+                .setAudience(Collections.singletonList(clientId))
+                .build();
     }
 
     /**
