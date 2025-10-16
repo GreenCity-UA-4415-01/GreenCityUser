@@ -65,7 +65,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     /**
      * Constructor.
-     * 
+     *
      * @param authorizationRequestRepository we pass the OAuth2AuthorizationRequest
      *                                       to use Spring Security mechanisms
      */
