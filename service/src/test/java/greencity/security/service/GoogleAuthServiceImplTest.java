@@ -59,7 +59,7 @@ class GoogleAuthServiceImplTest {
     private GoogleAuthServiceImpl googleAuthService;
 
     @Mock
-    private RestTemplate restTemplateGoogle;
+    private RestTemplate restTemplate;
 
     private static final String CLIENT_ID = "test_client_id";
     private static final String CLIENT_SECRET = "test_client_secret"; // nosemgrep
@@ -86,7 +86,7 @@ class GoogleAuthServiceImplTest {
         ReflectionTestUtils.setField(googleAuthService, "authorizationUri", AUTH_URI);
         ReflectionTestUtils.setField(googleAuthService, "tokenUri", TOKEN_URI);
 
-        ReflectionTestUtils.setField(googleAuthService, "restTemplateGoogle", restTemplateGoogle);
+        ReflectionTestUtils.setField(googleAuthService, "restTemplate", restTemplate);
 
         mockPayload = new GoogleIdToken.Payload();
         mockPayload.setSubject("1234567890");
@@ -110,7 +110,7 @@ class GoogleAuthServiceImplTest {
         GoogleAuthServiceImpl.TokenResponse tokenResponse = new GoogleAuthServiceImpl.TokenResponse();
         tokenResponse.setIdToken(ID_TOKEN_STRING);
 
-        when(restTemplateGoogle.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
+        when(restTemplate.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
             .thenReturn(ResponseEntity.ok(tokenResponse));
     }
 
@@ -163,7 +163,7 @@ class GoogleAuthServiceImplTest {
 
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
         verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
-        verify(restTemplateGoogle).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
 
         ArgumentCaptor<GoogleUserDto> googleUserCaptor = ArgumentCaptor.forClass(GoogleUserDto.class);
         verify(provisioningService).provisionUserAndIssueToken(googleUserCaptor.capture());
@@ -185,7 +185,7 @@ class GoogleAuthServiceImplTest {
             () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, INVALID_STATE, request, response));
 
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
-        verifyNoInteractions(restTemplateGoogle);
+        verifyNoInteractions(restTemplate);
         verifyNoInteractions(googleIdTokenVerifier);
         verifyNoInteractions(provisioningService);
     }
@@ -193,14 +193,14 @@ class GoogleAuthServiceImplTest {
     @Test
     @DisplayName("Callback: Invalid Code - Should throw GoogleCodeExchangeException")
     void handleGoogleAuthCallback_InvalidCode_ShouldThrowException() throws GeneralSecurityException, IOException {
-        when(restTemplateGoogle.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
+        when(restTemplate.postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class)))
             .thenReturn(ResponseEntity.badRequest().build());
 
         assertThrows(GoogleCodeExchangeException.class,
             () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response));
 
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
-        verify(restTemplateGoogle).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
         verify(googleIdTokenVerifier, never()).verify(any(String.class));
         verifyNoInteractions(provisioningService);
     }
@@ -214,7 +214,7 @@ class GoogleAuthServiceImplTest {
             () -> googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response));
 
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
-        verify(restTemplateGoogle).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
         verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
         verifyNoInteractions(provisioningService);
     }
@@ -230,7 +230,7 @@ class GoogleAuthServiceImplTest {
         assertTrue(exception.getMessage().contains("Unverified email"));
 
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
-        verify(restTemplateGoogle).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+        verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
         verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
         verifyNoInteractions(provisioningService);
     }
