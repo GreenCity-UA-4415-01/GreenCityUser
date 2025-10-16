@@ -13,8 +13,10 @@ import greencity.dto.user.PlaceAuthorDto;
 import greencity.dto.user.UserActivationDto;
 import greencity.dto.user.UserDeactivationReasonDto;
 import greencity.dto.violation.UserViolationMailDto;
+import greencity.exception.exceptions.BadRequestException;
 import greencity.exception.exceptions.NotFoundException;
 import greencity.repository.UserRepo;
+import greencity.validator.UserEmailValidator;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +52,7 @@ public class EmailServiceImpl implements EmailService {
     private final String serverLink;
     private final String senderEmailAddress;
     private static final String PARAM_USER_ID = "&user_id=";
+    private final UserEmailValidator userEmailValidator;
 
     /**
      * Constructor.
@@ -62,7 +65,8 @@ public class EmailServiceImpl implements EmailService {
         @Value("${client.address}") String clientLink,
         @Value("${econews.address}") String ecoNewsLink,
         @Value("${address}") String serverLink,
-        @Value("${sender.email.address}") String senderEmailAddress) {
+        @Value("${sender.email.address}") String senderEmailAddress,
+        UserEmailValidator userEmailValidator) {
         this.javaMailSender = javaMailSender;
         this.templateEngine = templateEngine;
         this.userRepo = userRepo;
@@ -71,6 +75,7 @@ public class EmailServiceImpl implements EmailService {
         this.ecoNewsLink = ecoNewsLink;
         this.serverLink = serverLink;
         this.senderEmailAddress = senderEmailAddress;
+        this.userEmailValidator = userEmailValidator;
     }
 
     @Override
@@ -244,9 +249,16 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendHabitNotification(String name, String email) {
-        String subject = "Notification about not marked habits";
-        String content = "Dear " + name + ", you haven't marked any habit during last 3 days";
-        sendEmail(email, subject, content);
+        if (!userEmailValidator.isValid(email)) {
+            throw new BadRequestException("Invalid email address: " + email);
+        }
+        if (userRepo.findByEmail(email).isPresent()) {
+            String subject = "Notification about not marked habits";
+            String content = "Dear " + name + ", you haven't marked any habit during last 3 days";
+            sendEmail(email, subject, content);
+        } else {
+            throw new NotFoundException(ErrorMessage.USER_NOT_FOUND_BY_EMAIL + email);
+        }
     }
 
     @Override
