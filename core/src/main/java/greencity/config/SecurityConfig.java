@@ -147,11 +147,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST,
                     "/ownSecurity/signUp",
                     "/ownSecurity/signIn",
-                    "/ownSecurity/updatePassword")
+                    "/ownSecurity/updatePassword",
+                    "/email/sendNewNews")
                 .permitAll()
-                .requestMatchers(HttpMethod.GET, USER_LINK)
-                .hasRole(ADMIN)
-                .requestMatchers(HttpMethod.GET,
+                .requestMatchers(HttpMethod.GET, USER_LINK,
                     "/user/shopping-list-items/habits/{habitId}/shopping-list",
                     "/user/{userId}/{habitId}/custom-shopping-list-items/available",
                     "/user/{userId}/profile/", "/user/isOnline/{userId}/",
@@ -268,22 +267,7 @@ public class SecurityConfig {
      */
     @Bean
     public GoogleIdTokenVerifier googleIdTokenVerifier() {
-        return new GoogleIdTokenVerifier.Builder(
-            new NetHttpTransport(),
-            GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(clientId))
-                .build();
-    }
-
-    /**
-     * Defines a RestTemplate bean for the application context. This allows it to be
-     * autowired into other services (like GoogleAuthServiceImpl).
-     */
-    @Bean
-    public RestTemplate restTemplate() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(5000);
-        return new RestTemplate(factory);
+        return new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
+            GsonFactory.getDefaultInstance()).build();
     }
 }
