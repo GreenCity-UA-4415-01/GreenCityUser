@@ -62,7 +62,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private final AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository;
     private final SecureRandom secureRandom = new SecureRandom();
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplateGoogle;
     private final GoogleProvisioningService provisioningService;
 
     /**
@@ -74,11 +74,11 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     public GoogleAuthServiceImpl(
         AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
         GoogleIdTokenVerifier googleIdTokenVerifier,
-        RestTemplate restTemplate,
+        RestTemplate restTemplateGoogle,
         GoogleProvisioningService provisioningService) {
         this.authorizationRequestRepository = authorizationRequestRepository;
         this.googleIdTokenVerifier = googleIdTokenVerifier;
-        this.restTemplate = restTemplate;
+        this.restTemplateGoogle = restTemplateGoogle;
         this.provisioningService = provisioningService;
     }
 
@@ -164,7 +164,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
         TokenResponse tokenResponse;
         try {
-            ResponseEntity<TokenResponse> responseEntity = restTemplate.postForEntity(
+            ResponseEntity<TokenResponse> responseEntity = restTemplateGoogle.postForEntity(
                 tokenUri,
                 requestEntity,
                 TokenResponse.class);

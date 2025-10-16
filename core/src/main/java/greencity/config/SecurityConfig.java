@@ -280,7 +280,7 @@ public class SecurityConfig {
      * autowired into other services (like GoogleAuthServiceImpl).
      */
     @Bean
-    public RestTemplate restTemplate() {
+    public RestTemplate restTemplateGoogle() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);
         factory.setReadTimeout(5000);
