@@ -5,6 +5,7 @@ import greencity.dto.user.GoogleUserDto;
 import greencity.exception.exceptions.GoogleCodeExchangeException;
 import greencity.exception.exceptions.GoogleIdTokenValidationException;
 import greencity.exception.exceptions.StateMismatchException;
+import greencity.security.dto.SuccessSignInDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
@@ -62,6 +63,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
     private final RestTemplate restTemplate;
+    private final GoogleProvisioningService provisioningService;
 
     /**
      * Constructor.
@@ -72,10 +74,12 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     public GoogleAuthServiceImpl(
         AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository,
         GoogleIdTokenVerifier googleIdTokenVerifier,
-        RestTemplate restTemplate) {
+        RestTemplate restTemplate,
+        GoogleProvisioningService provisioningService) {
         this.authorizationRequestRepository = authorizationRequestRepository;
         this.googleIdTokenVerifier = googleIdTokenVerifier;
         this.restTemplate = restTemplate;
+        this.provisioningService = provisioningService;
     }
 
     /**
@@ -134,7 +138,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
      * Exchanges the authorization code for tokens and validates the id_token.
      */
     @Override
-    public GoogleUserDto handleGoogleAuthCallback(
+    public SuccessSignInDto handleGoogleAuthCallback(
         String code,
         String state,
         HttpServletRequest request,
@@ -199,13 +203,17 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             throw new GoogleIdTokenValidationException("Unverified email.");
         }
 
-        return GoogleUserDto.builder()
+        GoogleUserDto googleUserDto = GoogleUserDto.builder()
             .sub(payload.getSubject())
             .email(payload.getEmail())
             .emailVerified(emailVerified)
             .name((String) payload.get("name"))
             .picture((String) payload.get("picture"))
             .build();
+
+        log.info("Provisioning user based on Google identity: {}", googleUserDto.getEmail());
+
+        return provisioningService.provisionUserAndIssueToken(googleUserDto);
     }
 
     /** Inner class for deserializing the token endpoint response. */

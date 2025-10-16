@@ -6,6 +6,7 @@ import greencity.dto.user.GoogleUserDto;
 import greencity.exception.exceptions.GoogleCodeExchangeException;
 import greencity.exception.exceptions.GoogleIdTokenValidationException;
 import greencity.exception.exceptions.StateMismatchException;
+import greencity.security.dto.SuccessSignInDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,9 @@ class GoogleAuthServiceImplTest {
 
     @Mock
     private HttpServletResponse response;
+
+    @Mock
+    private GoogleProvisioningService provisioningService;
 
     @InjectMocks
     private GoogleAuthServiceImpl googleAuthService;
@@ -143,18 +147,33 @@ class GoogleAuthServiceImplTest {
     @Test
     @DisplayName("Callback: Happy Path - Should exchange code, validate token, and return user data")
     void handleGoogleAuthCallback_HappyPath() throws GeneralSecurityException, IOException {
-        GoogleUserDto result = googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response);
+        SuccessSignInDto expectedSignInDto = new SuccessSignInDto(
+            1L, "mockAccessToken", "mockRefreshToken", "Test User", true);
+
+        when(provisioningService.provisionUserAndIssueToken(any(GoogleUserDto.class)))
+            .thenReturn(expectedSignInDto);
+
+        SuccessSignInDto result =
+            googleAuthService.handleGoogleAuthCallback(VALID_CODE, VALID_STATE, request, response);
 
         assertNotNull(result);
-        assertEquals("1234567890", result.getSub());
-        assertEquals("user@example.com", result.getEmail());
-        assertTrue(result.getEmailVerified());
-        assertEquals("Test User", result.getName());
-        assertEquals("http://example.com/pic.jpg", result.getPicture());
+        assertEquals(expectedSignInDto, result);
+        assertEquals("mockAccessToken", result.getAccessToken());
+        assertEquals(1L, result.getUserId());
 
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
         verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
         verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
+
+        ArgumentCaptor<GoogleUserDto> googleUserCaptor = ArgumentCaptor.forClass(GoogleUserDto.class);
+        verify(provisioningService).provisionUserAndIssueToken(googleUserCaptor.capture());
+
+        GoogleUserDto capturedDto = googleUserCaptor.getValue();
+        assertEquals("1234567890", capturedDto.getSub());
+        assertEquals("user@example.com", capturedDto.getEmail());
+        assertTrue(capturedDto.getEmailVerified());
+        assertEquals("Test User", capturedDto.getName());
+        assertEquals("http://example.com/pic.jpg", capturedDto.getPicture());
     }
 
     @Test
@@ -168,6 +187,7 @@ class GoogleAuthServiceImplTest {
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
         verifyNoInteractions(restTemplate);
         verifyNoInteractions(googleIdTokenVerifier);
+        verifyNoInteractions(provisioningService);
     }
 
     @Test
@@ -182,6 +202,7 @@ class GoogleAuthServiceImplTest {
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
         verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
         verify(googleIdTokenVerifier, never()).verify(any(String.class));
+        verifyNoInteractions(provisioningService);
     }
 
     @Test
@@ -195,6 +216,7 @@ class GoogleAuthServiceImplTest {
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
         verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
         verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
+        verifyNoInteractions(provisioningService);
     }
 
     @Test
@@ -210,5 +232,6 @@ class GoogleAuthServiceImplTest {
         verify(authorizationRequestRepository).removeAuthorizationRequest(request, response);
         verify(restTemplate).postForEntity(eq(TOKEN_URI), any(), eq(GoogleAuthServiceImpl.TokenResponse.class));
         verify(googleIdTokenVerifier).verify(ID_TOKEN_STRING);
+        verifyNoInteractions(provisioningService);
     }
 }
