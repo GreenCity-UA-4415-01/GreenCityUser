@@ -1,6 +1,6 @@
 package greencity.security.service;
 
-import greencity.dto.user.GoogleUserDto;
+import greencity.security.dto.SuccessSignInDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -35,6 +35,6 @@ public interface GoogleAuthService {
      * @return A DTO containing validated user identity data.
      * @author Oleksandr Braiko
      */
-    GoogleUserDto handleGoogleAuthCallback(String code, String state,
+    SuccessSignInDto handleGoogleAuthCallback(String code, String state,
         HttpServletRequest request, HttpServletResponse response);
 }
