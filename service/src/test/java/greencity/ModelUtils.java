@@ -99,6 +99,7 @@ public class ModelUtils {
             .lastActivityTime(LocalDateTime.now())
             .verifyEmail(new VerifyEmail())
             .dateOfRegistration(LocalDateTime.now())
+            .emailVerified(false)
             .build();
     }
 
@@ -112,6 +113,7 @@ public class ModelUtils {
             .lastActivityTime(LocalDateTime.now())
             .verifyEmail(new VerifyEmail())
             .dateOfRegistration(LocalDateTime.now())
+            .emailVerified(false)
             .build();
     }
 
@@ -125,6 +127,7 @@ public class ModelUtils {
             .verifyEmail(new VerifyEmail())
             .restorePasswordEmail(new RestorePasswordEmail())
             .dateOfRegistration(LocalDateTime.now())
+            .emailVerified(false)
             .build();
     }
 
