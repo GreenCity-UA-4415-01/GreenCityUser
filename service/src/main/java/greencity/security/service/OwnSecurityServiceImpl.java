@@ -135,6 +135,7 @@ public class OwnSecurityServiceImpl implements OwnSecurityService {
             .language(Language.builder()
                 .id(modelMapper.map(language, Long.class))
                 .build())
+            .emailVerified(false)
             .build();
     }
 
