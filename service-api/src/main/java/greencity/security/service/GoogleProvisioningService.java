@@ -15,7 +15,7 @@ public interface GoogleProvisioningService {
      * checking whether the user exists, or by creating a new one.
      *
      * @param googleUserDto - DTO of Google authentication.
-     * @return Successfull SignIn DTO to keep unified data objects with existing
+     * @return Successful SignIn DTO to keep unified data objects with existing
      *         OwnSecurity logic.
      * @author Oleskandr Braiko
      */

@@ -211,7 +211,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             .picture((String) payload.get("picture"))
             .build();
 
-        log.info("Provisioning user based on Google identity: {}", googleUserDto.getEmail());
+        log.debug("Provisioning user based on Google identity: {}", maskEmail(googleUserDto.getEmail()));
 
         return provisioningService.provisionUserAndIssueToken(googleUserDto);
     }
@@ -222,5 +222,17 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     public static class TokenResponse {
         @JsonProperty("id_token")
         private String idToken;
+    }
+
+    /** Inner method to mask email while logging. */
+    private String maskEmail(String email) {
+        if (email == null) {
+            return "null";
+        }
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return "***";
+        }
+        return email.charAt(0) + "***@" + email.substring(at + 1);
     }
 }

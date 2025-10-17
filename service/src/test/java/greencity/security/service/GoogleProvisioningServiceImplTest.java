@@ -1,6 +1,8 @@
 package greencity.security.service;
 
 import greencity.dto.user.GoogleUserDto;
+import greencity.entity.Language;
+import greencity.repository.LanguageRepo;
 import greencity.security.dto.SuccessSignInDto;
 import greencity.entity.User;
 import greencity.enums.Role;
@@ -39,6 +41,8 @@ class GoogleProvisioningServiceImplTest {
     private JwtTool jwtTool;
     @Mock
     private ModelMapper modelMapper;
+    @Mock
+    private LanguageRepo languageRepo;
 
     @InjectMocks
     private GoogleProvisioningServiceImpl googleProvisioningService;
@@ -48,9 +52,11 @@ class GoogleProvisioningServiceImplTest {
     private static final String GOOGLE_EMAIL = "google.user@example.com";
     private static final String GOOGLE_NAME = "Google User";
     private static final long MOCK_USER_ID = 10L;
+    private static final String DEFAULT_LANGUAGE_CODE = "en";
 
     private GoogleUserDto googleUserDto;
     private UserVO userVo;
+    private Language mockDefaultLanguage;
 
     @BeforeEach
     void setUp() {
@@ -69,11 +75,12 @@ class GoogleProvisioningServiceImplTest {
             .refreshTokenKey("mockRefreshTokenKey")
             .build();
 
-        when(modelMapper.map(any(User.class), eq(UserVO.class))).thenReturn(userVo);
+        mockDefaultLanguage = Language.builder().id(2L).code(DEFAULT_LANGUAGE_CODE).build();
 
-        when(jwtTool.createAccessToken(anyString(), any(Role.class)))
+        lenient().when(modelMapper.map(any(User.class), eq(UserVO.class))).thenReturn(userVo);
+        lenient().when(jwtTool.createAccessToken(anyString(), any(Role.class)))
             .thenReturn("mockAccessToken");
-        when(jwtTool.createRefreshToken(any(UserVO.class)))
+        lenient().when(jwtTool.createRefreshToken(any(UserVO.class)))
             .thenReturn("mockRefreshToken");
     }
 
@@ -86,6 +93,7 @@ class GoogleProvisioningServiceImplTest {
             .emailVerified(true)
             .provider(isLinked ? PROVIDER : null)
             .providerId(isLinked ? GOOGLE_SUB : null)
+            .language(mockDefaultLanguage)
             .build();
     }
 
@@ -96,11 +104,12 @@ class GoogleProvisioningServiceImplTest {
     @Test
     @DisplayName("Scenario 1: Create new user if no match found by ID or Email (ownRegistrations=false)")
     void provisionUserAndIssueToken_CreateNewUser() {
+        when(languageRepo.findByCode(DEFAULT_LANGUAGE_CODE))
+            .thenReturn(Optional.of(mockDefaultLanguage));
         when(userRepo.findByProviderAndProviderId(PROVIDER, GOOGLE_SUB))
             .thenReturn(Optional.empty());
         when(userRepo.findByEmail(GOOGLE_EMAIL))
             .thenReturn(Optional.empty());
-
         when(userRepo.save(any(User.class))).thenAnswer(invocation -> {
             User newUser = invocation.getArgument(0);
             newUser.setId(MOCK_USER_ID);
@@ -118,8 +127,13 @@ class GoogleProvisioningServiceImplTest {
         assertEquals(PROVIDER, savedUser.getProvider());
         assertEquals(GOOGLE_SUB, savedUser.getProviderId());
 
+        assertNotNull(savedUser.getLanguage());
+        assertEquals(mockDefaultLanguage.getId(), savedUser.getLanguage().getId(),
+            "The new user must be assigned the language ID fetched from the repository.");
+
         assertFalse(result.isOwnRegistrations(), "New user from Google should have ownRegistrations=false");
 
+        verify(languageRepo, times(1)).findByCode(DEFAULT_LANGUAGE_CODE);
         verify(modelMapper, times(1)).map(any(User.class), eq(UserVO.class));
     }
 
@@ -148,6 +162,7 @@ class GoogleProvisioningServiceImplTest {
 
         assertTrue(result.isOwnRegistrations(), "Linked user who was an original registrant should result in true.");
 
+        verify(languageRepo, never()).findByCode(anyString());
         verify(modelMapper, times(1)).map(any(User.class), eq(UserVO.class));
     }
 
@@ -174,7 +189,7 @@ class GoogleProvisioningServiceImplTest {
         assertFalse(result.isOwnRegistrations(), "Existing Google user should have ownRegistrations=false");
 
         verify(userRepo, never()).findByEmail(anyString());
-
+        verify(languageRepo, never()).findByCode(anyString());
         verify(modelMapper, times(1)).map(any(User.class), eq(UserVO.class));
     }
 
@@ -199,6 +214,24 @@ class GoogleProvisioningServiceImplTest {
         assertEquals("mockAccessToken", result.getAccessToken());
         assertFalse(result.isOwnRegistrations(), "Existing Google user should have ownRegistrations=false");
 
+        verify(languageRepo, never()).findByCode(anyString());
         verify(modelMapper, times(1)).map(any(User.class), eq(UserVO.class));
+    }
+
+    @Test
+    @DisplayName("Scenario 5: Throw exception if default language 'en' is not found")
+    void provisionUserAndIssueToken_LanguageNotFound_ThrowsException() {
+        when(userRepo.findByProviderAndProviderId(PROVIDER, GOOGLE_SUB)).thenReturn(Optional.empty());
+        when(userRepo.findByEmail(GOOGLE_EMAIL)).thenReturn(Optional.empty());
+
+        when(languageRepo.findByCode(DEFAULT_LANGUAGE_CODE)).thenReturn(Optional.empty());
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+            () -> googleProvisioningService.provisionUserAndIssueToken(googleUserDto));
+
+        assertTrue(exception.getMessage().contains("Default language 'en' not found"),
+            "Exception message should indicate that the default language is missing.");
+
+        verify(userRepo, never()).save(any(User.class));
     }
 }

@@ -2,10 +2,12 @@ package greencity.security.service;
 
 import greencity.dto.user.GoogleUserDto;
 import greencity.dto.user.UserVO;
+import greencity.entity.Language;
 import greencity.entity.User;
 import greencity.enums.EmailNotification;
 import greencity.enums.Role;
 import greencity.enums.UserStatus;
+import greencity.repository.LanguageRepo;
 import greencity.repository.UserRepo;
 import greencity.security.dto.SuccessSignInDto;
 import greencity.security.jwt.JwtTool;
@@ -23,12 +25,13 @@ import java.util.UUID;
 @Slf4j
 public class GoogleProvisioningServiceImpl implements GoogleProvisioningService {
     private static final String GOOGLE_PROVIDER = "GOOGLE";
-    private static final Long DEFAULT_LANGUAGE_ID = 2L; // Assuming 'en' is ID 2 from OwnSecurityServiceImpl
-    private static final Double DEFAULT_RATING = 0.0; // From AppConstant/OwnSecurityServiceImpl
+    private static final String DEFAULT_LANGUAGE_CODE = "en";
+    private static final Double DEFAULT_RATING = 0.0;
 
     private final UserRepo userRepo;
     private final JwtTool jwtTool;
     private final ModelMapper modelMapper;
+    private final LanguageRepo languageRepo;
 
     /**
      * Provisions the user based on Google ID Token data. Steps: 1. If no user by
@@ -48,9 +51,9 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
 
         if (linkedUser.isPresent()) {
             User user = linkedUser.get();
-            log.info("Found user {} by provider/id. Updating profile fields.", user.getEmail());
+            log.debug("Found user by provider/id: {}", maskEmail(user.getEmail()));
             updateUserProfile(user, dto);
-            userRepo.save(user); // Save updates
+            userRepo.save(user);
             // This is an existing linked Google user, so ownRegistrations is false.
             return issueTokens(user, false);
         }
@@ -60,7 +63,7 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
 
         if (userByEmail.isPresent()) {
             User user = userByEmail.get();
-            log.info("User found by email: {}. Linking Google provider.", user.getEmail());
+            log.debug("User found by email: {} (linking Google)", maskEmail(user.getEmail()));
             linkGoogleProvider(user, dto);
             userRepo.save(user);
             // This user was previously registered via the app's own security, so
@@ -69,7 +72,7 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
         }
 
         // 3. If no user found, create a new user (Step 1).
-        log.info("No user found. Creating new user for email: {}", dto.getEmail());
+        log.debug("No user found. Creating new user for email: {}", maskEmail(dto.getEmail()));
         User newUser = createNewGoogleUser(dto);
         userRepo.save(newUser);
         // This is a brand-new Google user, so ownRegistrations is false.
@@ -79,6 +82,9 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
     private User createNewGoogleUser(GoogleUserDto dto) {
         // Adapt logic from OwnSecurityServiceImpl.createNewRegisteredUser.
         String refreshTokenKey = jwtTool.generateTokenKey();
+
+        Language defaultLanguage = languageRepo.findByCode(DEFAULT_LANGUAGE_CODE)
+            .orElseThrow(() -> new IllegalStateException("Default language 'en' not found in database."));
 
         return User.builder()
             .name(dto.getName() != null ? dto.getName() : dto.getEmail().split("@")[0])
@@ -90,7 +96,7 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
             .userStatus(UserStatus.ACTIVATED)
             .emailNotification(EmailNotification.DISABLED)
             .rating(DEFAULT_RATING)
-            .language(greencity.entity.Language.builder().id(DEFAULT_LANGUAGE_ID).build())
+            .language(defaultLanguage)
             .uuid(UUID.randomUUID().toString())
             .provider(GOOGLE_PROVIDER)
             .providerId(dto.getSub())
@@ -118,19 +124,24 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
 
     private void updateUserProfile(User user, GoogleUserDto dto) {
         user.setEmailVerified(dto.getEmailVerified());
-        user.setName(dto.getName());
-        user.setProfilePicturePath(dto.getPicture());
+        if (dto.getName() != null && !dto.getName().isEmpty()) {
+            user.setName(dto.getName());
+        }
+        if (dto.getPicture() != null && !dto.getPicture().isEmpty()) {
+            user.setProfilePicturePath(dto.getPicture());
+        }
         user.setLastActivityTime(LocalDateTime.now());
     }
 
     private SuccessSignInDto issueTokens(User user, boolean ownRegistrations) {
+        String newRefreshTokenKey = jwtTool.generateTokenKey();
+        user.setRefreshTokenKey(newRefreshTokenKey);
+
         UserVO userVO = modelMapper.map(user, UserVO.class);
 
         String accessToken = jwtTool.createAccessToken(userVO.getEmail(), userVO.getRole());
         String refreshToken = jwtTool.createRefreshToken(userVO);
 
-        String newRefreshTokenKey = jwtTool.generateTokenKey();
-        user.setRefreshTokenKey(newRefreshTokenKey);
         userRepo.save(user);
 
         return new SuccessSignInDto(
@@ -139,5 +150,17 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
             refreshToken,
             user.getName(),
             ownRegistrations);
+    }
+
+    /** Inner method to mask email while logging. */
+    private String maskEmail(String email) {
+        if (email == null) {
+            return "null";
+        }
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return "***";
+        }
+        return email.charAt(0) + "***@" + email.substring(at + 1);
     }
 }
