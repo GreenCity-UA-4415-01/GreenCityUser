@@ -17,7 +17,7 @@ public interface GoogleProvisioningService {
      * @param googleUserDto - DTO of Google authentication.
      * @return Successful SignIn DTO to keep unified data objects with existing
      *         OwnSecurity logic.
-     * @author Oleskandr Braiko
+     * @author Oleksandr Braiko
      */
     SuccessSignInDto provisionUserAndIssueToken(GoogleUserDto googleUserDto);
 }

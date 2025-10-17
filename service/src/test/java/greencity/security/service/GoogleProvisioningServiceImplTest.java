@@ -82,6 +82,8 @@ class GoogleProvisioningServiceImplTest {
             .thenReturn("mockAccessToken");
         lenient().when(jwtTool.createRefreshToken(any(UserVO.class)))
             .thenReturn("mockRefreshToken");
+        lenient().when(jwtTool.generateTokenKey())
+            .thenReturn("mockRefreshTokenKey");
     }
 
     private User createMockUser(Long id, boolean isLinked, String name) {
