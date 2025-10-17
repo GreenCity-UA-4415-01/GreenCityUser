@@ -121,7 +121,7 @@ public class CookieAuthorizationRequestRepository implements
     /**
      * Serializes an object to a Base64-encoded string using standard Java
      * serialization.
-     * 
+     *
      * @param object The object to serialize.
      * @return The Base64 encoded string.
      */
@@ -147,7 +147,7 @@ public class CookieAuthorizationRequestRepository implements
     /**
      * Deserializes a Base64-encoded string back into an object using standard Java
      * serialization.
-     * 
+     *
      * @param cookie The cookie containing the Base64 serialized object.
      * @param cls    The expected class of the deserialized object.
      * @return The deserialized object.

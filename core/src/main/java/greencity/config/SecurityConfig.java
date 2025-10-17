@@ -145,11 +145,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST,
                     "/ownSecurity/signUp",
                     "/ownSecurity/signIn",
-                    "/ownSecurity/updatePassword")
+                    "/ownSecurity/updatePassword",
+                    "/email/sendNewNews")
                 .permitAll()
-                .requestMatchers(HttpMethod.GET, USER_LINK)
-                .hasRole(ADMIN)
-                .requestMatchers(HttpMethod.GET,
+                .requestMatchers(HttpMethod.GET, USER_LINK,
                     "/user/shopping-list-items/habits/{habitId}/shopping-list",
                     "/user/{userId}/{habitId}/custom-shopping-list-items/available",
                     "/user/{userId}/profile/", "/user/isOnline/{userId}/",
