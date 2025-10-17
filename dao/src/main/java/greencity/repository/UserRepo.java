@@ -81,6 +81,12 @@ public interface UserRepo extends JpaRepository<User, Long>, JpaSpecificationExe
     List<User> findAllByEmailNotification(EmailNotification emailNotification);
 
     /**
+     * Finds a user by their external authentication provider and provider-specific
+     * ID.
+     */
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
+
+    /**
      * Updates refresh token for a given user.
      *
      * @param refreshTokenKey - new refresh token key

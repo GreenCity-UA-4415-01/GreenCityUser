@@ -156,7 +156,7 @@ public class CookieAuthorizationRequestRepository implements
         try {
             byte[] bytes = Base64.getUrlDecoder().decode(cookie.getValue());
             String json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
-            Map<String, Object> p = MAPPER.readValue(json, new TypeReference<Map<String, Object>>() {
+            Map<String, Object> p = MAPPER.readValue(json, new TypeReference<>() {
             });
 
             @SuppressWarnings("unchecked")

@@ -1,10 +1,10 @@
 package greencity.security.controller;
 
 import greencity.annotations.ApiLocale;
-import greencity.dto.user.GoogleUserDto;
 import greencity.exception.exceptions.GoogleCodeExchangeException;
 import greencity.exception.exceptions.GoogleIdTokenValidationException;
 import greencity.exception.exceptions.StateMismatchException;
+import greencity.security.dto.SuccessSignInDto;
 import greencity.security.service.GoogleAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -77,7 +77,7 @@ public class GoogleSecurityController {
     })
     @GetMapping(value = "/auth/google/callback", produces = MediaType.APPLICATION_JSON_VALUE)
     @ApiLocale
-    public ResponseEntity<GoogleUserDto> handleGoogleAuthCallback(
+    public ResponseEntity<SuccessSignInDto> handleGoogleAuthCallback(
         @RequestParam(name = "code", required = false) String code,
         @RequestParam(name = "state", required = false) String state,
         @RequestParam(name = "error", required = false) String error,
@@ -93,8 +93,8 @@ public class GoogleSecurityController {
         }
 
         try {
-            GoogleUserDto userDto = googleAuthService.handleGoogleAuthCallback(code, state, request, response);
-            return ResponseEntity.ok(userDto);
+            SuccessSignInDto successDto = googleAuthService.handleGoogleAuthCallback(code, state, request, response);
+            return ResponseEntity.ok(successDto);
         } catch (StateMismatchException e) {
             log.error("Authentication failed: State mismatch", e);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State parameter mismatch. Possible CSRF attack.",
