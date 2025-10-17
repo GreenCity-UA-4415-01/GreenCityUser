@@ -31,8 +31,12 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
     private final ModelMapper modelMapper;
 
     /**
-     * Provisions the user based on Google ID Token data (provisioning logic from
-     * steps 1-3).
+     * Provisions the user based on Google ID Token data.
+     * Steps:
+     * 1. If no user by email → create a new user and link to Google provider.
+     * 2. If user exists by email → link/update provider fields.
+     * 3. If user exists by (provider, provider_id) → update profile fields.
+     * 4. Issue access token / refresh token or session according to current authentication scheme.
      *
      * @param dto The extracted user data from Google ID Token.
      * @return SuccessSignInDto containing the user ID, tokens, and name.
@@ -40,19 +44,19 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
     @Override
     @Transactional
     public SuccessSignInDto provisionUserAndIssueToken(GoogleUserDto dto) {
-        // Step 3: Check for user by (provider, provider_id) - existing Google user
+        // 1. Check for user by (provider, provider_id) - existing Google user (Step 3).
         Optional<User> linkedUser = userRepo.findByProviderAndProviderId(GOOGLE_PROVIDER, dto.getSub());
 
         if (linkedUser.isPresent()) {
             User user = linkedUser.get();
             log.info("Found user {} by provider/id. Updating profile fields.", user.getEmail());
-            // Step 3: Update profile fields
             updateUserProfile(user, dto);
             userRepo.save(user); // Save updates
-            return issueTokens(user);
+            // This is an existing linked Google user, so ownRegistrations is false.
+            return issueTokens(user, false);
         }
 
-        // 2. Check for user by email - for existing non-Google users (Steps 1 & 2)
+        // 2. Check for user by email - for existing non-Google users (Step 2).
         Optional<User> userByEmail = userRepo.findByEmail(dto.getEmail());
 
         if (userByEmail.isPresent()) {
@@ -60,41 +64,42 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
             log.info("User found by email: {}. Linking Google provider.", user.getEmail());
             linkGoogleProvider(user, dto);
             userRepo.save(user);
-            return issueTokens(user);
+            // This user was previously registered via the app's own security, so ownRegistrations is true.
+            return issueTokens(user, true);
         }
 
-        // 3. If no user found, create a new user (Step 1)
+        // 3. If no user found, create a new user (Step 1).
         log.info("No user found. Creating new user for email: {}", dto.getEmail());
         User newUser = createNewGoogleUser(dto);
         userRepo.save(newUser);
-        return issueTokens(newUser);
+        // This is a brand-new Google user, so ownRegistrations is false.
+        return issueTokens(newUser, false);
     }
 
     private User createNewGoogleUser(GoogleUserDto dto) {
-        // Adapt logic from OwnSecurityServiceImpl.createNewRegisteredUser
+        // Adapt logic from OwnSecurityServiceImpl.createNewRegisteredUser.
         String refreshTokenKey = jwtTool.generateTokenKey();
 
         return User.builder()
-            .name(dto.getName() != null ? dto.getName() : dto.getEmail().split("@")[0])
-            .email(dto.getEmail())
-            .dateOfRegistration(LocalDateTime.now())
-            .role(Role.ROLE_USER)
-            .refreshTokenKey(refreshTokenKey)
-            .lastActivityTime(LocalDateTime.now())
-            // Google users skip the CREATED/VerifyEmail stage, moving straight to ACTIVATED
-            .userStatus(UserStatus.ACTIVATED)
-            .emailNotification(EmailNotification.DISABLED)
-            .rating(DEFAULT_RATING)
-            .language(greencity.entity.Language.builder().id(DEFAULT_LANGUAGE_ID).build())
-            .uuid(UUID.randomUUID().toString())
-            .provider(GOOGLE_PROVIDER)
-            .providerId(dto.getSub())
-            .emailVerified(dto.getEmailVerified())
-            .profilePicturePath(dto.getPicture())
-            .showLocation(true)
-            .showEcoPlace(true)
-            .showShoppingList(true)
-            .build();
+                .name(dto.getName() != null ? dto.getName() : dto.getEmail().split("@")[0])
+                .email(dto.getEmail())
+                .dateOfRegistration(LocalDateTime.now())
+                .role(Role.ROLE_USER)
+                .refreshTokenKey(refreshTokenKey)
+                .lastActivityTime(LocalDateTime.now())
+                .userStatus(UserStatus.ACTIVATED)
+                .emailNotification(EmailNotification.DISABLED)
+                .rating(DEFAULT_RATING)
+                .language(greencity.entity.Language.builder().id(DEFAULT_LANGUAGE_ID).build())
+                .uuid(UUID.randomUUID().toString())
+                .provider(GOOGLE_PROVIDER)
+                .providerId(dto.getSub())
+                .emailVerified(dto.getEmailVerified())
+                .profilePicturePath(dto.getPicture())
+                .showLocation(true)
+                .showEcoPlace(true)
+                .showShoppingList(true)
+                .build();
     }
 
     private void linkGoogleProvider(User user, GoogleUserDto dto) {
@@ -118,7 +123,7 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
         user.setLastActivityTime(LocalDateTime.now());
     }
 
-    private SuccessSignInDto issueTokens(User user) {
+    private SuccessSignInDto issueTokens(User user, boolean ownRegistrations) {
         UserVO userVO = modelMapper.map(user, UserVO.class);
 
         String accessToken = jwtTool.createAccessToken(userVO.getEmail(), userVO.getRole());
@@ -129,10 +134,10 @@ public class GoogleProvisioningServiceImpl implements GoogleProvisioningService 
         userRepo.save(user);
 
         return new SuccessSignInDto(
-            user.getId(),
-            accessToken,
-            refreshToken,
-            user.getName(),
-            true);
+                user.getId(),
+                accessToken,
+                refreshToken,
+                user.getName(),
+                ownRegistrations);
     }
 }
