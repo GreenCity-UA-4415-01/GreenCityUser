@@ -26,8 +26,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit/Integration tests for GoogleProvisioningServiceImpl.
- * Mocks the repository and token services to test the core provisioning logic.
+ * Unit/Integration tests for GoogleProvisioningServiceImpl. Mocks the
+ * repository and token services to test the core provisioning logic.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Google Provisioning Service Impl Tests")
@@ -55,38 +55,38 @@ class GoogleProvisioningServiceImplTest {
     @BeforeEach
     void setUp() {
         googleUserDto = GoogleUserDto.builder()
-                .sub(GOOGLE_SUB)
-                .email(GOOGLE_EMAIL)
-                .name(GOOGLE_NAME)
-                .picture("http://profile.pic")
-                .emailVerified(true)
-                .build();
+            .sub(GOOGLE_SUB)
+            .email(GOOGLE_EMAIL)
+            .name(GOOGLE_NAME)
+            .picture("http://profile.pic")
+            .emailVerified(true)
+            .build();
 
         userVo = UserVO.builder()
-                .id(MOCK_USER_ID)
-                .email(GOOGLE_EMAIL)
-                .role(Role.ROLE_USER)
-                .refreshTokenKey("mockRefreshTokenKey")
-                .build();
+            .id(MOCK_USER_ID)
+            .email(GOOGLE_EMAIL)
+            .role(Role.ROLE_USER)
+            .refreshTokenKey("mockRefreshTokenKey")
+            .build();
 
         when(modelMapper.map(any(User.class), eq(UserVO.class))).thenReturn(userVo);
 
         when(jwtTool.createAccessToken(anyString(), any(Role.class)))
-                .thenReturn("mockAccessToken");
+            .thenReturn("mockAccessToken");
         when(jwtTool.createRefreshToken(any(UserVO.class)))
-                .thenReturn("mockRefreshToken");
+            .thenReturn("mockRefreshToken");
     }
 
     private User createMockUser(Long id, boolean isLinked, String name) {
         return User.builder()
-                .id(id)
-                .email(GOOGLE_EMAIL)
-                .name(name)
-                .role(Role.ROLE_USER)
-                .emailVerified(true)
-                .provider(isLinked ? PROVIDER : null)
-                .providerId(isLinked ? GOOGLE_SUB : null)
-                .build();
+            .id(id)
+            .email(GOOGLE_EMAIL)
+            .name(name)
+            .role(Role.ROLE_USER)
+            .emailVerified(true)
+            .provider(isLinked ? PROVIDER : null)
+            .providerId(isLinked ? GOOGLE_SUB : null)
+            .build();
     }
 
     private User createMockUser(Long id, boolean isLinked) {
@@ -97,9 +97,9 @@ class GoogleProvisioningServiceImplTest {
     @DisplayName("Scenario 1: Create new user if no match found by ID or Email (ownRegistrations=false)")
     void provisionUserAndIssueToken_CreateNewUser() {
         when(userRepo.findByProviderAndProviderId(PROVIDER, GOOGLE_SUB))
-                .thenReturn(Optional.empty());
+            .thenReturn(Optional.empty());
         when(userRepo.findByEmail(GOOGLE_EMAIL))
-                .thenReturn(Optional.empty());
+            .thenReturn(Optional.empty());
 
         when(userRepo.save(any(User.class))).thenAnswer(invocation -> {
             User newUser = invocation.getArgument(0);
@@ -130,9 +130,9 @@ class GoogleProvisioningServiceImplTest {
         User existingUnlinkedUser = createMockUser(existingUserId, false);
 
         when(userRepo.findByProviderAndProviderId(PROVIDER, GOOGLE_SUB))
-                .thenReturn(Optional.empty());
+            .thenReturn(Optional.empty());
         when(userRepo.findByEmail(GOOGLE_EMAIL))
-                .thenReturn(Optional.of(existingUnlinkedUser));
+            .thenReturn(Optional.of(existingUnlinkedUser));
 
         when(userRepo.save(any(User.class))).thenReturn(existingUnlinkedUser);
 
@@ -158,7 +158,7 @@ class GoogleProvisioningServiceImplTest {
         User existingLinkedUser = createMockUser(existingUserId, true, "Old Name");
 
         when(userRepo.findByProviderAndProviderId(PROVIDER, GOOGLE_SUB))
-                .thenReturn(Optional.of(existingLinkedUser));
+            .thenReturn(Optional.of(existingLinkedUser));
 
         when(userRepo.save(any(User.class))).thenReturn(existingLinkedUser);
 
@@ -185,7 +185,7 @@ class GoogleProvisioningServiceImplTest {
         User existingLinkedUser = createMockUser(existingUserId, true);
 
         when(userRepo.findByProviderAndProviderId(PROVIDER, GOOGLE_SUB))
-                .thenReturn(Optional.of(existingLinkedUser));
+            .thenReturn(Optional.of(existingLinkedUser));
 
         when(userRepo.save(any(User.class))).thenReturn(existingLinkedUser);
 
