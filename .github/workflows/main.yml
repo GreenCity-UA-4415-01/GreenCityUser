@@ -33,6 +33,7 @@ jobs:
     
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Checks-out your greencity.repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
       - name: Set up JDK 21
@@ -54,13 +55,14 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_USER }}
         run: |
           git fetch --unshallow
-          mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install
-        #  Temporary mvn install without using Sonar
-        
-        #  Uncomment after we setup Sonar properly
-        #  mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.projectKey=ita-social-projects-green-city-user -Dsonar.organization=ita-social-projects -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources='src/main/java/greencity' -Dsonar.binaries=target/classes -Dsonar.dynamicAnalysis=reuseReports
-        # Checks-out your greencity.repository under $GITHUB_WORKSPACE, so your job can access it
-      
+          mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar \
+          -Dsonar.projectKey=GreenCity-UA-4415-01_GreenCityUser \
+          -Dsonar.organization=GreenCity-UA-4415-01 \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.sources='src/main/java/greencity' \
+          -Dsonar.binaries=target/classes \
+          -Dsonar.dynamicAnalysis=reuseReports
+
       - name: Test Reporter
         uses: dorny/test-reporter@v1
         if: success() || failure()
