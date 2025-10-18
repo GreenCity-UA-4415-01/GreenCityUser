@@ -61,7 +61,8 @@ jobs:
           -Dsonar.host.url=https://sonarcloud.io \
           -Dsonar.sources='src/main/java/greencity' \
           -Dsonar.binaries=target/classes \
-          -Dsonar.dynamicAnalysis=reuseReports
+          -Dsonar.dynamicAnalysis=reuseReports \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN_USER }}
 
       - name: Test Reporter
         uses: dorny/test-reporter@v1
